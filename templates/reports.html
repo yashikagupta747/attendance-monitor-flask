@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Attendance Reports</h2>
+<a href="{{ url_for('index') }}" class="btn btn-secondary mb-3">Back to Dashboard</a>
+<table class="table table-bordered table-hover rounded shadow">
+    <thead class="thead-dark">
+        <tr>
+            <th>Name</th>
+            <th>User ID</th>
+            <th>Date</th>
+            <th>Day</th>
+            <th>In Time</th>
+            <th>Out Time</th>
+            <th>Duration</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for r in records %}
+        <tr>
+            <td>{{ r[0] }}</td>
+            <td>{{ r[1] }}</td>
+            <td>{{ r[2] }}</td>
+            <td>{{ r[3] }}</td>
+            <td>{{ r[4] or '-' }}</td>
+            <td>{{ r[5] or '-' }}</td>
+            <td>{{ r[6] or '-' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

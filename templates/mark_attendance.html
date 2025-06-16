@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Mark Attendance</h2>
+<div class="row">
+    <div class="col-md-6">
+        <video id="video" width="100%" autoplay playsinline style="border:1px solid #ccc;"></video>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <button id="capture" class="btn btn-primary mt-2">Capture</button>
+        <div id="loading" style="display:none;" class="mt-2">
+            <span class="spinner-border spinner-border-sm"></span> Processing...
+        </div>
+        <div id="captured-image" class="mt-2"></div>
+    </div>
+    <div class="col-md-6" id="results"></div>
+</div>
+<script>
+const video = document.getElementById('video');
+const captureBtn = document.getElementById('capture');
+const canvas = document.getElementById('canvas');
+const resultsDiv = document.getElementById('results');
+const loadingDiv = document.getElementById('loading');
+const capturedImgDiv = document.getElementById('captured-image');
+
+// Start the webcam stream
+navigator.mediaDevices.getUserMedia({ video: true })
+    .then(stream => {
+        video.srcObject = stream;
+        video.play();
+    })
+    .catch(err => {
+        resultsDiv.innerHTML = '<div class="alert alert-danger">Webcam access denied or not available.</div>';
+    });
+
+captureBtn.addEventListener('click', () => {
+    // Show loading spinner
+    loadingDiv.style.display = 'block';
+    resultsDiv.innerHTML = '';
+    capturedImgDiv.innerHTML = '';
+    // Set canvas size to video size
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    // Draw current frame to canvas
+    canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Show captured image for confirmation
+    const imgDataUrl = canvas.toDataURL('image/jpeg');
+    capturedImgDiv.innerHTML = `<img src="${imgDataUrl}" class="img-thumbnail" width="200" alt="Captured Image">`;
+    // Convert canvas to blob and send to Flask
+    canvas.toBlob(blob => {
+        const formData = new FormData();
+        formData.append('file', blob, 'capture.jpg');
+        fetch('/process_attendance', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            loadingDiv.style.display = 'none';
+            if(data.status === 'success' && data.results.length > 0) {
+                resultsDiv.innerHTML = data.results.map(result => `
+                    <div class="alert alert-success">
+                        <strong>Attendance Marked!</strong><br>
+                        User ID: <b>${result.user_id}</b><br>
+                        Status: <b>${result.status}</b><br>
+                        Time: <b>${result.time}</b>
+                    </div>
+                `).join('');
+            } else if(data.status === 'success' && data.results.length === 0) {
+                resultsDiv.innerHTML = '<div class="alert alert-warning">No registered face detected in the image.</div>';
+            } else {
+                resultsDiv.innerHTML = `<div class="alert alert-danger">Error: ${data.message || "Unknown error."}</div>`;
+            }
+        })
+        .catch(() => {
+            loadingDiv.style.display = 'none';
+            resultsDiv.innerHTML = '<div class="alert alert-danger">Error processing attendance. Please try again.</div>';
+        });
+    }, 'image/jpeg');
+});
+</script>
+{% endblock %}
