@@ -21,33 +21,43 @@ const resultsDiv = document.getElementById('results');
 const loadingDiv = document.getElementById('loading');
 const capturedImgDiv = document.getElementById('captured-image');
 
-// Start the webcam stream
-navigator.mediaDevices.getUserMedia({ video: true })
-    .then(stream => {
-        video.srcObject = stream;
-        video.play();
-    })
-    .catch(err => {
-        resultsDiv.innerHTML = '<div class="alert alert-danger">Webcam access denied or not available.</div>';
-    });
+// Start the webcam stream with optimal settings
+navigator.mediaDevices.getUserMedia({ 
+    video: { 
+        width: { ideal: 640 },
+        height: { ideal: 480 },
+        facingMode: 'user'
+    } 
+})
+.then(stream => {
+    video.srcObject = stream;
+    video.play();
+})
+.catch(err => {
+    resultsDiv.innerHTML = '<div class="alert alert-danger">Webcam access denied or not available.</div>';
+});
 
 captureBtn.addEventListener('click', () => {
-    // Show loading spinner
     loadingDiv.style.display = 'block';
     resultsDiv.innerHTML = '';
     capturedImgDiv.innerHTML = '';
+    
     // Set canvas size to video size
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    
     // Draw current frame to canvas
     canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+    
     // Show captured image for confirmation
-    const imgDataUrl = canvas.toDataURL('image/jpeg');
+    const imgDataUrl = canvas.toDataURL('image/jpeg', 0.7); // Reduced quality for faster transfer
     capturedImgDiv.innerHTML = `<img src="${imgDataUrl}" class="img-thumbnail" width="200" alt="Captured Image">`;
+    
     // Convert canvas to blob and send to Flask
     canvas.toBlob(blob => {
         const formData = new FormData();
         formData.append('file', blob, 'capture.jpg');
+        
         fetch('/process_attendance', {
             method: 'POST',
             body: formData
@@ -74,7 +84,14 @@ captureBtn.addEventListener('click', () => {
             loadingDiv.style.display = 'none';
             resultsDiv.innerHTML = '<div class="alert alert-danger">Error processing attendance. Please try again.</div>';
         });
-    }, 'image/jpeg');
+    }, 'image/jpeg', 0.7); // Reduced quality
+});
+
+// Clean up when leaving page
+window.addEventListener('beforeunload', () => {
+    if (video.srcObject) {
+        video.srcObject.getTracks().forEach(track => track.stop());
+    }
 });
 </script>
 {% endblock %}
